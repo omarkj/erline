@@ -31,7 +31,7 @@ t_check_spec() ->
 		    module4],
 	  {sequential,[module5]}
 	 },
-	 {finally, [module6]}
+	 {sequential, [module6]}
 	},
     ?assertMatch({pipeline,sequential,undefined,
 		  [module1,
@@ -44,6 +44,6 @@ t_check_spec() ->
 		    [module5],
 		    undefined,undefined},
 		   undefined},
-		  {pipeline,finally,[inherit],[module6],undefined,undefined}}
+		  {pipeline,sequential,[inherit],[module6],undefined,undefined}}
 		 when is_function(F)
 		 , erline:prepare(S)).

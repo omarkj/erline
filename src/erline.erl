@@ -11,9 +11,9 @@ prepare(Pipeline, Opts) ->
     Size = size(Pipeline),
     #pipeline{type=element(1, Pipeline),
 	      actions=validate_actions(element(2, Pipeline), []),
-	      nextline=?IF(Size >= 3, prepare(element(3, Pipeline), inherit),
+	      nextline=?IF(Size >= 3, prepare(element(3, Pipeline), [inherit]),
 			   undefined),
-	      finally=?IF(Size >= 4, prepare(element(4, Pipeline), inherit),
+	      finally=?IF(Size >= 4, prepare(element(4, Pipeline), [inherit]),
 			  undefined),
 	      opts=Opts}.
 
@@ -27,4 +27,4 @@ validate_actions([Module|Rest], Res) when is_atom(Module) ->
 	_ -> erlang:error(badarg)
     end;
 validate_actions([Pipeline|Rest], Res) when is_tuple(Pipeline) ->
-    validate_actions(Rest, Res++[prepare(Pipeline, inherit)]).
+    validate_actions(Rest, Res++[prepare(Pipeline, [inherit])]).

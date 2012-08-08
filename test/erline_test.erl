@@ -33,6 +33,17 @@ t_check_spec() ->
 	 },
 	 {finally, [module6]}
 	},
-    
-    ?assertMatch(#pipeline{}, erline:prepare(S)).
-    
+    ?assertMatch({pipeline,sequential,undefined,
+		  [module1,
+		   {pipeline,sequential,[inherit],[module2],undefined,undefined}],
+		  {pipeline,parallel,
+		   [inherit],
+		   [module3,F,module4],
+		   {pipeline,sequential,
+		    [inherit],
+		    [module5],
+		    undefined,undefined},
+		   undefined},
+		  {pipeline,finally,[inherit],[module6],undefined,undefined}}
+		 when is_function(F)
+		 , erline:prepare(S)).

@@ -26,10 +26,10 @@ t_check_spec() ->
     S = {sequential,[module1,
 		     {sequential, [module2]}
 		    ],
-	 {parallel,[module3,
-		    fun(D) -> D end,
-		    module4],
-	  {sequential,[module5]}
+	 {parallel, [module3,
+		     fun(D) -> D end,
+		     module4],
+	  {sequential, [module5]}
 	 },
 	 {finally, [module6]}
 	},
@@ -43,4 +43,4 @@ t_check_spec() ->
 		    undefined,undefined},
 		   undefined},
 		  {pipeline,finally,inherit,[module6],undefined,undefined}},
-		 erline:prepare(S)).    
+		 erline:prepare(S)).

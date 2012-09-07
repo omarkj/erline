@@ -1,6 +1,8 @@
 -module(erline).
 -export([prepare/2,
-	 prepare/1]).
+	 prepare/1,
+	 sync/2,
+	 async/2]).
 -include("erline.hrl").
 -define(IF(Bool, A, B), if Bool -> A; true -> B end).
 
@@ -28,3 +30,13 @@ validate_actions([Module|Rest], Res) when is_atom(Module) ->
     end;
 validate_actions([Pipeline|Rest], Res) when is_tuple(Pipeline) ->
     validate_actions(Rest, Res++[prepare(Pipeline, inherit)]).
+
+sync(#pipeline{}=Pipeline, Input) ->
+    Ref = async(Pipeline, Input),
+    receive
+	{Ref, Res} ->
+	    Res
+    end.
+
+async(#pipeline{}=Pipeline, Input) ->
+    erline_manager_sup:start_pipeline(Pipeline, Input).

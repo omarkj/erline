@@ -26,24 +26,21 @@ t_check_spec() ->
     S = {sequential,[module1,
 		     {sequential, [module2]}
 		    ],
-	 {parallel,[module3,
-		    fun(D) -> D end,
-		    module4],
-	  {sequential,[module5]}
+	 {parallel, [module3,
+		     fun(D) -> D end,
+		     module4],
+	  {sequential, [module5]}
 	 },
-	 {sequential, [module6]}
+	 {finally, [module6]}
 	},
     ?assertMatch({pipeline,sequential,undefined,
 		  [module1,
-		   {pipeline,sequential,[inherit],[module2],undefined,undefined}],
-		  {pipeline,parallel,
-		   [inherit],
-		   [module3,F,module4],
-		   {pipeline,sequential,
-		    [inherit],
+		   {pipeline,sequential,inherit,[module2],undefined,undefined}],
+		  {pipeline,parallel,inherit,
+		   [module3,_,module4],
+		   {pipeline,sequential,inherit,
 		    [module5],
 		    undefined,undefined},
 		   undefined},
-		  {pipeline,sequential,[inherit],[module6],undefined,undefined}}
-		 when is_function(F)
-		 , erline:prepare(S)).
+		  {pipeline,finally,inherit,[module6],undefined,undefined}},
+		 erline:prepare(S)).

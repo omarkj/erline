@@ -9,9 +9,16 @@ compile: get_deps
 clean:
 	@$(REBAR) clean
 
-test: clean compile
+eunit: clean compile
 	mv rebar.config rebar.prod.config
 	mv rebar.test.config rebar.config
 	@$(REBAR) get-deps compile eunit skip_deps=true
+	mv rebar.config rebar.test.config
+	mv rebar.prod.config rebar.config
+
+ct: clean compile
+	mv rebar.config rebar.prod.config
+	mv rebar.test.config rebar.config
+	@$(REBAR) get_deps compile ct skip_deps=true
 	mv rebar.config rebar.test.config
 	mv rebar.prod.config rebar.config

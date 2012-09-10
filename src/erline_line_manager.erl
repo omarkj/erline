@@ -9,19 +9,38 @@
 	 terminate/2, 
 	 code_change/3]).
 
--export([start_link/2]).
+-export([start_link/4,
+	 action_return/2]).
 
 -record(state, {ref :: reference(),
+		caller :: pid()|atom(),
 		next_pipeline :: #pipeline{},
+		finally :: #pipeline{},
 		input :: any()}).
 
-start_link(Pipeline, Input) ->
-    gen_server:start_link(?MODULE, [Pipeline, Input], []).
+start_link(Caller, Ref, Pipeline, Input) ->
+    gen_server:start_link(?MODULE, [Caller, Ref, Pipeline, Input], []).
 
-init([Ref, #pipeline{nextline=Nextline}=Pipeline, Input]) ->
+action_return(Pid, Result) ->
+    gen_server:call(Pid, {action_over, Result}).
+
+init([Caller, Ref, #pipeline{nextline=Nextline,
+			     type=Type,
+			     actions=Actions,
+			     opts=Opts,
+			     finally=Finally}, Input]) ->
+    erline_action_sup:start_action(Type, Actions, Opts, Input),
     {ok, #state{ref=Ref,
-		next_pipeline=Nextline}}.
+		caller=Caller,
+		next_pipeline=Nextline,
+		finally=Finally}}.
 
+handle_call({action_over, Results}, _From, #state{next_pipeline=undefined,
+						  caller=Caller,
+						  ref=Ref,
+						  finally=undefined}=State) ->
+    Caller ! {Ref, Results},
+    {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
     {noreply, State}.
 

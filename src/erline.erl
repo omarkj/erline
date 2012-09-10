@@ -39,4 +39,4 @@ sync(#pipeline{}=Pipeline, Input) ->
     end.
 
 async(#pipeline{}=Pipeline, Input) ->
-    erline_manager_sup:start_pipeline(Pipeline, Input).
+    erline_manager_sup:start_pipeline(self(), Pipeline, Input).

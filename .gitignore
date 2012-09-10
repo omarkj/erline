@@ -4,3 +4,5 @@ ebin/
 logs/
 *~
 *.beam
+.DS_Store
+*.dump

@@ -19,6 +19,7 @@ eunit: clean compile
 ct: clean get_deps compile
 #	mv rebar.config rebar.prod.config
 #	mv rebar.test.config rebar.config
+	rm test/*.beam
 	@$(REBAR) ct skip_deps=true
 #	mv rebar.config rebar.test.config
 #	mv rebar.prod.config rebar.config

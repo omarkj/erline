@@ -16,9 +16,9 @@ eunit: clean compile
 	mv rebar.config rebar.test.config
 	mv rebar.prod.config rebar.config
 
-ct: clean compile
+ct: clean get_deps compile
 #	mv rebar.config rebar.prod.config
 #	mv rebar.test.config rebar.config
-	@$(REBAR) get_deps compile ct skip_deps=true
+	@$(REBAR) ct skip_deps=true
 #	mv rebar.config rebar.test.config
 #	mv rebar.prod.config rebar.config

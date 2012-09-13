@@ -18,8 +18,9 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-start_action(sequential, Action, Opts, Input) ->
-    {ok, _Pid} = supervisor:start_child(?MODULE, [self(), Action, Opts, Input]).
+start_action(Action, Opts, Input, true) ->
+    {ok, Pid} = supervisor:start_child(?MODULE, [self(), Action, Opts, Input]),
+    Pid.
 
 %% ===================================================================
 %% Supervisor callbacks

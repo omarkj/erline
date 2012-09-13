@@ -18,9 +18,9 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-start_pipeline(Caller, #pipeline{}=Pipe, Input) ->
+start_pipeline(Caller, [#pipeline{}|_]=Pipes, Input) ->
     Ref = erlang:make_ref(),
-    {ok, _Pid} = supervisor:start_child(?MODULE, [Caller, Ref, Pipe, Input]),
+    {ok, _Pid} = supervisor:start_child(?MODULE, [Caller, Ref, Pipes, Input]),
     Ref.
 
 %% ===================================================================

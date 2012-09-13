@@ -9,15 +9,22 @@ start_link(Caller, Action, Opts, Input) ->
     Pid = spawn_link(erline_action, runner, [Caller, Action, Opts, Input]),
     {ok, Pid}.
 
+runner(Caller, Actions, _Opts, Input) when is_list(Actions) ->
+    ok = erline_line_manager:action_return(Caller, handle_actions(Actions, Input));
 runner(Caller, Actions, _Opts, Input) ->
-    ok = erline_line_manager:action_return(Caller, handle_action(Actions, Input)).
+    runner(Caller, [Actions], _Opts, Input).
 
-handle_action([], Output) ->
+handle_actions([], Output) ->
     Output;
-handle_action([Action|Actions], Input) when is_record(Action, pipeline) ->
-    Res = erline:sync(Action, Input),
-    handle_action(Actions, Res);
-handle_action([Action|Actions], Input) when is_atom(Action) ->
-    handle_action(Actions, Action:handle(Input));
-handle_action([Action|Actions], Input) when is_function(Action) ->
-    handle_action(Actions, Action(Input)).
+handle_actions([Action|Actions], Input) ->
+    handle_actions(Actions, handle_action(Action, Input)).
+
+handle_action(Action, Input) when is_function(Action) ->
+    Action(Input);
+handle_action(Action, Input) when is_atom(Action) ->
+    Action:handle(Input);
+handle_action([#pipeline{}|_]=Actions, Input) ->
+    erline:sync(Actions, Input).
+
+
+

@@ -1,17 +1,16 @@
 -module(erline).
--export([prepare/2,
-	 prepare/1,
+-export([create/3,
 	 sync/2,
 	 async/2]).
 -include("erline.hrl").
 
-prepare(Pipeline) ->
-    prepare(Pipeline, undefined).
-
-prepare(Pipeline, Opts) ->
-    [#pipeline{type=element(1, Pipeline),
-	       actions=validate_actions(element(2, Pipeline), []),
-	       opts=Opts}].
+create(sequential, Actions, Options) ->
+    create(#pipeline{type=sequential}, Actions, Options);
+create(concurrent, Actions, Options) ->
+    create(#pipeline{type=concurrent}, Actions, Options);
+create(#pipeline{}=Pipeline, Actions, Options) ->
+    [Pipeline#pipeline{actions=validate_actions(Actions, []),
+		       opts=Options}].
 
 validate_actions([], Res) ->
     Res;
@@ -22,8 +21,8 @@ validate_actions([Module|Rest], Res) when is_atom(Module) ->
 	true -> validate_actions(Rest, Res++[Module]);
 	_ -> erlang:error(badarg)
     end;
-validate_actions([Pipeline|Rest], Res) when is_tuple(Pipeline) ->
-    validate_actions(Rest, Res++[prepare(Pipeline, inherit)]).
+validate_actions([[#pipeline{}|_]=Pipelines|Rest], Res) ->
+    validate_actions(Rest, Res++[Pipelines]).
 
 sync(Pipelines, Input) ->
     Ref = async(Pipelines, Input),

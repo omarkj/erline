@@ -11,6 +11,4 @@
 -record(pipeline, {type :: pipeline_type(),
 		   opts :: term()|undefined,
 		   actions = [] :: []|[module()]|[pipeline()]|
-				   maybe_improper_list(module(),pipeline()),
-		   nextline :: #pipeline{}|undefined,
-		   finally :: #pipeline{}|undefined}).
+				   maybe_improper_list(module(),pipeline())}).

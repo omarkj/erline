@@ -17,14 +17,32 @@ runner(Caller, Actions, _Opts, Input) ->
 handle_actions([], Output) ->
     Output;
 handle_actions([Action|Actions], Input) ->
-    handle_actions(Actions, handle_action(Action, Input)).
+    case handle_action(Action, Input) of
+	{action_error, _}=Error ->
+	    handle_actions([], Error);
+	Res ->
+	    handle_actions(Actions, Res)
+    end.
 
 handle_action(Action, Input) when is_function(Action) ->
-    Action(Input);
+    try Action(Input) of
+	R -> R
+    catch
+	_:_=Error ->
+	    {action_error, Error}
+    end;
 handle_action(Action, Input) when is_atom(Action) ->
-    Action:handle(Input);
+    try Action:handle(Input) of
+	R -> R
+    catch
+	_:_=Error ->
+	    error_logger:error_msg("Action ~p crashed with error ~p", [Action, Error]),
+	    UserError = 
+		case erlang:function_exported(Action, on_crash, 1) of
+		    true -> catch Action:on_crash(Error);
+		    _ -> Error
+		end,
+	    {action_error, UserError}
+    end;
 handle_action([#pipeline{}|_]=Actions, Input) ->
     erline:sync(Actions, Input).
-
-
-

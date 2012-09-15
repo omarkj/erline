@@ -11,15 +11,17 @@
 	 ,module_line/1
 	 ,pipeline_to_pipeline/1
 	 ,concurrent_line/1
+	 ,seq_crash/1
 	]).
 
 all() ->    
     [
-     simple_line
-     ,seq_line_with_line
-     ,module_line
-     ,pipeline_to_pipeline
-     ,concurrent_line
+     %simple_line
+     %,seq_line_with_line
+     %,module_line
+     %,pipeline_to_pipeline
+     %,concurrent_line
+     seq_crash
     ].
 
 % Setup & teardown
@@ -74,9 +76,14 @@ concurrent_line(Config) ->
 				    fun({Tab1,X}) ->
 					    F = X * 12,
 					    ets:insert(Tab1, {fun_2, F})
-						
 				    end], []),
     [true,true] = erline:sync(S1, {Tab,5}),
     [{fun_1, 50}] = ets:lookup(Tab, fun_1),
     [{fun_2, 60}] = ets:lookup(Tab, fun_2),
+    Config.
+
+seq_crash(Config) ->
+    S = erline:create(sequential, [erline_SUITE_module3,
+				   erline_SUITE_module4], []),
+    {action_error, badarg} = erline:sync(S, test),
     Config.

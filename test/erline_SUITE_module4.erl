@@ -2,6 +2,5 @@
 
 -export([handle/1]).
 
-handle(_Binary) ->
-    % I will not run..
-    undefined.
+handle(Atom) ->
+    {module4, atom_to_list(Atom)}.

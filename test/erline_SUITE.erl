@@ -12,6 +12,7 @@
 	 ,pipeline_to_pipeline/1
 	 ,concurrent_line/1
 	 ,seq_crash/1
+	 ,concurrent_crash/1
 	]).
 
 all() ->    
@@ -22,6 +23,7 @@ all() ->
      %,pipeline_to_pipeline
      %,concurrent_line
      seq_crash
+     ,concurrent_crash
     ].
 
 % Setup & teardown
@@ -86,4 +88,12 @@ seq_crash(Config) ->
     S = erline:create(sequential, [erline_SUITE_module3,
 				   erline_SUITE_module4], []),
     {action_error, badarg} = erline:sync(S, test),
+    Config.
+
+concurrent_crash(Config) ->
+    S = erline:create(concurrent, [erline_SUITE_module3,
+				   erline_SUITE_module4], []),
+    Res = erline:sync(S, test),
+    badarg = proplists:get_value(action_error, Res),
+    "test" = proplists:get_value(module4, Res),
     Config.

@@ -16,7 +16,8 @@
 		caller :: pid()|atom(),
 		actions_left = 0 :: integer(),
 		results = [] :: []|[any()],
-		pipelines = [] :: [] | [#pipeline{}] ,
+		pipelines = [] :: [] | [#pipeline{}],
+		current_pipeline :: #pipeline{}|undefined,
 		input :: any()}).
 
 start_link(Caller, Ref, Pipelines, Input) ->
@@ -26,8 +27,8 @@ action_return(Pid, Result) ->
     gen_server:call(Pid, {action_over, Result}).
 
 init([Caller, Ref, Pipelines, Input]) ->
-    {ok, reset_state(Pipelines, Input, #state{caller=Caller,
-					      ref=Ref})}.
+    {ok, reset_state(initialize_pipelines(Pipelines, []), Input, #state{caller=Caller,
+									ref=Ref})}.
 
 handle_call({action_over, Result}, _From, #state{caller=Caller,
 						 ref=Ref,
@@ -70,19 +71,33 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-reset_state([#pipeline{type=Type, actions=Actions, opts=Opts}|Rest], Input,
-	    State) ->
-    RunningActions = case start_line(Type, Actions, Opts, Input) of
-			 Pid when is_pid(Pid) ->
-			     1;
-			 List ->
-			     length(List)
-		     end,
+reset_state([#pipeline{type=Type, actions=Actions, init_return=I}|Rest], Input, State) ->
+    RunningActions = start_actions(Type, Actions, [{init_with, I}], Input),
     State#state{pipelines=Rest,
-		actions_left=RunningActions}.
+		actions_left=length(RunningActions)}.
     
+start_actions(sequential, Actions, ActionOpts, Input) ->
+    [erline_action_sup:start_action(Actions, ActionOpts, Input, true)];
+start_actions(concurrent, Actions, Opts, Input) ->
+    lists:map(fun(Action) ->
+		      [Pid] = start_actions(sequential, Action, Opts, Input),
+		      Pid
+	      end, Actions).
 
-start_line(sequential, Actions, Opts, Input) ->
-    erline_action_sup:start_action(Actions, Opts, Input, true);
-start_line(concurrent, Actions, Opts, Input) ->
-    lists:map(fun(Action) -> start_line(sequential, Action, Opts, Input) end, Actions).
+%% @TODO check if the init_return is set, and if that's the fact do not
+%% run the on_start - then we are workin in a "warm" pipeline.
+initialize_pipelines([], Res) ->
+    Res;
+initialize_pipelines([#pipeline{opts=Opts}=Pipeline|Pipelines], Res) ->
+    Pipeline0 = handle_opts(Opts, Pipeline),
+    initialize_pipelines(Pipelines, Res++[Pipeline0]).
+
+handle_opts([], Pipeline) ->
+    Pipeline;
+handle_opts([{on_start, {M,F,A}}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline#pipeline{init_return=M:F(A)});
+handle_opts([{on_start, F}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline#pipeline{init_return=F()});
+handle_opts([{on_end, _E}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline).
+

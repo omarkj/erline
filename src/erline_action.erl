@@ -9,19 +9,22 @@ start_link(Caller, Action, Opts, Input) ->
     Pid = spawn_link(erline_action, runner, [Caller, Action, Opts, Input]),
     {ok, Pid}.
 
-runner(Caller, Actions, _Opts, Input) when is_list(Actions) ->
-    ok = erline_line_manager:action_return(Caller, handle_actions(Actions, Input));
+runner(Caller, Actions, Opts, Input) when is_list(Actions) ->
+    case lists:keyfind(init_with, 1, Opts) of
+	{init_with, InitWith} ->
+	    ok = erline_line_manager:action_return(Caller, handle_actions(Actions, InitWith, Input))
+    end;
 runner(Caller, Actions, _Opts, Input) ->
     runner(Caller, [Actions], _Opts, Input).
 
-handle_actions([], Output) ->
+handle_actions([], _, Output) ->
     Output;
-handle_actions([Action|Actions], Input) ->
-    case handle_action(Action, Input) of
+handle_actions([Action|Actions], InitWith, Input) ->
+    case handle_action(Action, create_input(InitWith, Input)) of
 	{action_error, _}=Error ->
-	    handle_actions([], Error);
+	    handle_actions([], InitWith, Error);
 	Res ->
-	    handle_actions(Actions, Res)
+	    handle_actions(Actions, InitWith, Res)
     end.
 
 handle_action(Action, Input) when is_function(Action) ->
@@ -46,3 +49,8 @@ handle_action(Action, Input) when is_atom(Action) ->
     end;
 handle_action([#pipeline{}|_]=Actions, Input) ->
     erline:sync(Actions, Input).
+
+create_input(undefined, Input) ->
+    Input;
+create_input(InitWith, Input) ->
+    [InitWith, Input].

@@ -13,17 +13,19 @@
 	 ,concurrent_line/1
 	 ,seq_crash/1
 	 ,concurrent_crash/1
+	 ,pipeline_with_init/1
 	]).
 
 all() ->    
     [
-     %simple_line
-     %,seq_line_with_line
-     %,module_line
-     %,pipeline_to_pipeline
-     %,concurrent_line
-     seq_crash
+     simple_line
+     ,seq_line_with_line
+     ,module_line
+     ,pipeline_to_pipeline
+     ,concurrent_line
+     ,seq_crash
      ,concurrent_crash
+     ,pipeline_with_init
     ].
 
 % Setup & teardown
@@ -96,4 +98,21 @@ concurrent_crash(Config) ->
     Res = erline:sync(S, test),
     badarg = proplists:get_value(action_error, Res),
     "test" = proplists:get_value(module4, Res),
+    Config.
+
+%% Not sure how much I like this..should be a fun/2 in,
+%% and how would this behave in "warm" pipelines?
+pipeline_with_init(Config) ->
+    S = erline:create(sequential, [fun([output, X]) ->
+					   X+1
+				   end,
+				   fun([output, X]) ->
+					   X+1
+				   end], [{on_start, fun() ->
+							     output
+						     end},
+					  {on_end, fun(output) ->
+							   ok
+						   end}]),
+    3 = erline:sync(S, 1),
     Config.

@@ -13,14 +13,14 @@
 %% @end
 -spec create(sequential|concurrent,
 	     [module()|pipeline()|function()]|[],
-	     []) -> pipeline().
+	     pipeline_opts()) -> pipeline().
 create(sequential, Actions, Options) ->
     create(#pipeline{type=sequential}, Actions, Options);
 create(concurrent, Actions, Options) ->
     create(#pipeline{type=concurrent}, Actions, Options);
 create(#pipeline{}=Pipeline, Actions, Options) ->
     [Pipeline#pipeline{actions=validate_actions(Actions, []),
-		       opts=Options}].
+		       opts=validate_opts(Options, [])}].
 
 %% @doc
 %% Runs the pipeline and wait for it to finish.
@@ -45,6 +45,7 @@ sync(Pipelines, Input) ->
 async([#pipeline{}|_]=Pipelines, Input) ->
     erline_manager_sup:start_pipeline(self(), Pipelines, Input).
 
+%% Internal
 validate_actions([], Res) ->
     Res;
 validate_actions([Function|Rest], Res) when is_function(Function) ->
@@ -56,3 +57,24 @@ validate_actions([Module|Rest], Res) when is_atom(Module) ->
     end;
 validate_actions([[#pipeline{}|_]=Pipelines|Rest], Res) ->
     validate_actions(Rest, Res++[Pipelines]).
+
+validate_opts([], Res) ->
+    Res;
+validate_opts([{on_start, {M,F,_}}=Opt|Options], Res) when is_atom(M), is_atom(F) ->
+    case erlang:function_exported(M, F, 1) of
+	true ->
+	    validate_opts(Options, Res++[Opt]);
+       _ ->
+	    erlang:error(badarg)
+    end;
+validate_opts([{on_start, F}=Opt|Options], Res) when is_function(F) ->
+    validate_opts(Options, Res++[Opt]);
+validate_opts([{on_end, {M,F,_}}=Opt|Options], Res) when is_atom(M), is_atom(F) ->
+    case erlang:function_exported(M, F, 1) of
+	true ->
+	    validate_opts(Options, Res++[Opt]);
+       _ ->
+	    erlang:error(badarg)
+    end;
+validate_opts([{on_end, F}=Opt|Options], Res) when is_function(F) ->
+    validate_opts(Options, Res++[Opt]).

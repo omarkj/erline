@@ -24,23 +24,25 @@ create(#pipeline{}=Pipeline, Actions, Options) ->
 
 %% @doc
 %% Runs the pipeline and wait for it to finish.
+%% @TODO add timeout?
 %% @end
 -spec sync(pipeline(), any()) -> [any()].
 sync(Pipelines, Input) ->
-    Ref = async(Pipelines, Input),
-    receive
-	{Ref, Res} ->
-	    Res
+    case async(Pipelines, Input) of
+	{error, Error} ->
+	    {error, Error};
+	{_Pid, Ref} ->
+	    receive
+		{Ref, Res} ->
+		    Res
+	    end
     end.
 
 %% @doc
-%% Runs the pipeline asyncly, returns a reference that
+%% Runs the pipeline asyncly, returns a reference and pid that
 %% will be returned to the calling process in a tuple
 %% looking like this
 %% ```{Ref, Results}'''
-%% @TODO monitor to the running manager to be able to get
-%% a notification if it crashes during the run.
-%% This is critical
 %% @end
 -spec async(pipeline(), any()) -> reference().
 async([#pipeline{}|_]=Pipelines, Input) ->
@@ -63,19 +65,15 @@ validate_opts([], Res) ->
     Res;
 validate_opts([{on_start, {M,F,_}}=Opt|Options], Res) when is_atom(M), is_atom(F) ->
     case erlang:function_exported(M, F, 1) of
-	true ->
-	    validate_opts(Options, Res++[Opt]);
-       _ ->
-	    erlang:error(badarg)
+	true -> validate_opts(Options, Res++[Opt]);
+       _ -> erlang:error(badarg)
     end;
 validate_opts([{on_start, F}=Opt|Options], Res) when is_function(F) ->
     validate_opts(Options, Res++[Opt]);
-validate_opts([{on_end, {M,F,_}}=Opt|Options], Res) when is_atom(M), is_atom(F) ->
+validate_opts([{on_end, {M,F}}=Opt|Options], Res) when is_atom(M), is_atom(F) ->
     case erlang:function_exported(M, F, 1) of
-	true ->
-	    validate_opts(Options, Res++[Opt]);
-       _ ->
-	    erlang:error(badarg)
+	true -> validate_opts(Options, Res++[Opt]);
+       _ -> erlang:error(badarg)
     end;
 validate_opts([{on_end, F}=Opt|Options], Res) when is_function(F) ->
     validate_opts(Options, Res++[Opt]).

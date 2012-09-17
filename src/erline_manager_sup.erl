@@ -20,8 +20,12 @@ start_link() ->
 
 start_pipeline(Caller, [#pipeline{}|_]=Pipes, Input) ->
     Ref = erlang:make_ref(),
-    {ok, _Pid} = supervisor:start_child(?MODULE, [Caller, Ref, Pipes, Input]),
-    Ref.
+    case supervisor:start_child(?MODULE, [Caller, Ref, Pipes, Input]) of
+	{ok, Pid} ->
+	    {Pid, Ref};
+	Error ->
+	    Error
+    end.
 
 %% ===================================================================
 %% Supervisor callbacks

@@ -17,7 +17,7 @@
 		actions_left = 0 :: integer(),
 		results = [] :: []|[any()],
 		pipelines = [] :: [] | [#pipeline{}],
-		current_pipeline :: #pipeline{}|undefined,
+		done_pipelines = [] :: [] | [#pipeline{}],
 		input :: any()}).
 
 start_link(Caller, Ref, Pipelines, Input) ->
@@ -27,16 +27,23 @@ action_return(Pid, Result) ->
     gen_server:call(Pid, {action_over, Result}).
 
 init([Caller, Ref, Pipelines, Input]) ->
-    {ok, reset_state(initialize_pipelines(Pipelines, []), Input, #state{caller=Caller,
-									ref=Ref})}.
+    try initialize_pipelines(Pipelines, []) of
+	Pipelines0 ->
+	    {ok, reset_state(Pipelines0, Input, #state{caller=Caller,
+						       ref=Ref})}
+    catch
+	_:_ = Err ->
+	    {stop, Err}
+    end.
 
 handle_call({action_over, Result}, _From, #state{caller=Caller,
 						 ref=Ref,
 						 pipelines=[],
 						 results=Results,
-						 actions_left=1}) ->
+						 actions_left=1,
+						 done_pipelines=Done}) ->
     return_reply(Caller, Ref, Result, Results),
-    {stop, normal, ok, undefined};
+    {stop, normal, ok, Done};
 handle_call({action_over, Result}, _From, #state{results=Results,
 						 actions_left=1,
 						 pipelines=Pipelines}=State) ->
@@ -54,8 +61,16 @@ handle_cast(_Msg, State) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(_Reason, _State) ->
-    ok.
+terminate(Reason, []) ->
+    Reason;
+terminate(_Reason, [#pipeline{end_fun=F, init_return=Init}|Rest]) when is_function(F) ->
+    ?RUN_OR_LOG(F(Init), "Error running end of pipeline function ~p"),
+    terminate(_Reason, Rest);
+terminate(_Reason, [#pipeline{end_fun={M,F}, init_return=Init}|Rest]) ->
+    ?RUN_OR_LOG(M:F(Init), "Error running end of pipeline function ~p"),
+    terminate(_Reason, Rest);
+terminate(_Reason, [_|Rest]) ->
+    terminate(_Reason, Rest).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -65,9 +80,11 @@ reset_state(Pipelines, Result, [], State) ->
 reset_state(Pipelines, Result, Results, State) ->
     reset_state(Pipelines, Results++[Result], State).
 
-reset_state([#pipeline{type=Type, actions=Actions, init_return=I}|Rest], Input, State) ->
+reset_state([#pipeline{type=Type, actions=Actions, init_return=I}=Pipeline|Rest], Input,
+	    #state{done_pipelines=DonePipelines}=State) ->
     RunningActions = start_actions(Type, Actions, [{init_with, I}], Input),
     State#state{pipelines=Rest,
+		done_pipelines=DonePipelines++[Pipeline],
 		actions_left=length(RunningActions)}.
     
 start_actions(sequential, Actions, ActionOpts, Input) ->
@@ -92,8 +109,8 @@ handle_opts([{on_start, {M,F,A}}|Opts], Pipeline) ->
     handle_opts(Opts, Pipeline#pipeline{init_return=M:F(A)});
 handle_opts([{on_start, F}|Opts], Pipeline) ->
     handle_opts(Opts, Pipeline#pipeline{init_return=F()});
-handle_opts([{on_end, {M, F, A}}|Opts], Pipeline) ->
-    handle_opts(Opts, Pipeline#pipeline{end_fun={M,F,A}});
+handle_opts([{on_end, {M, F}}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline#pipeline{end_fun={M,F}});
 handle_opts([{on_end, F}|Opts], Pipeline) ->
     handle_opts(Opts, Pipeline#pipeline{end_fun=F}).
 

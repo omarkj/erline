@@ -14,6 +14,9 @@
 	 ,seq_crash/1
 	 ,concurrent_crash/1
 	 ,pipeline_with_init/1
+	 ,pipeline_with_init_end/1
+	 ,pipeline_with_end/1
+	 ,crashing_sub_manager/1
 	]).
 
 all() ->    
@@ -26,6 +29,9 @@ all() ->
      ,seq_crash
      ,concurrent_crash
      ,pipeline_with_init
+     ,pipeline_with_init_end
+     ,pipeline_with_end
+     ,crashing_sub_manager
     ].
 
 % Setup & teardown
@@ -100,9 +106,20 @@ concurrent_crash(Config) ->
     "test" = proplists:get_value(module4, Res),
     Config.
 
-%% Not sure how much I like this..should be a fun/2 in,
-%% and how would this behave in "warm" pipelines?
 pipeline_with_init(Config) ->
+    S = erline:create(sequential, [fun([output, X]) ->
+					   X+1
+				   end,
+				   fun([output, X]) ->
+					   X+1
+				   end], [{on_start, fun() ->
+							     output
+						     end}]),
+    3 = erline:sync(S, 1),
+    Config.
+
+pipeline_with_init_end(Config) ->
+    Tab = ets:new(test, [public]),
     S = erline:create(sequential, [fun([output, X]) ->
 					   X+1
 				   end,
@@ -112,7 +129,26 @@ pipeline_with_init(Config) ->
 							     output
 						     end},
 					  {on_end, fun(output) ->
-							   ok
-						   end}]),
+							   ets:insert(Tab, {on_end, true}),
+							   done
+						   end}
+					 ]),
     3 = erline:sync(S, 1),
+    [{on_end, true}] = ets:lookup(Tab, on_end),
+    Config.
+
+pipeline_with_end(Config) ->
+    Tab = ets:new(test, [public]),
+    S = erline:create(sequential, [], [{on_end, fun(_) ->
+							ets:insert(Tab, {on_end, true}),
+							output
+						end}]),
+    1 = erline:sync(S, 1),
+    [{on_end, true}] = ets:lookup(Tab, on_end),
+    Config.
+
+crashing_sub_manager(Config) ->
+    S = erline:create(sequential, [], [{on_start, fun() -> 1/0 end}]),
+    S1 = erline:create(sequential, [S], []),
+    {error, badarith} = erline:sync(S1, 1),
     Config.

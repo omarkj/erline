@@ -40,6 +40,7 @@ sync(Pipelines, Input) ->
 %% ```{Ref, Results}'''
 %% @TODO monitor to the running manager to be able to get
 %% a notification if it crashes during the run.
+%% This is critical
 %% @end
 -spec async(pipeline(), any()) -> reference().
 async([#pipeline{}|_]=Pipelines, Input) ->

@@ -1,7 +1,7 @@
 {application, erline,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "Erlang pipelines"},
+  {vsn, "0.1"},
   {registered, []},
   {applications, [
                   kernel,

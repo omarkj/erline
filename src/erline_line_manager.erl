@@ -33,25 +33,14 @@ init([Caller, Ref, Pipelines, Input]) ->
 handle_call({action_over, Result}, _From, #state{caller=Caller,
 						 ref=Ref,
 						 pipelines=[],
-						 results=[],
-						 actions_left=1}) ->
-    Caller ! {Ref, Result},
-    {stop, normal, ok, undefined};
-handle_call({action_over, Result}, _From, #state{caller=Caller,
-						 ref=Ref,
-						 pipelines=[],
 						 results=Results,
 						 actions_left=1}) ->
-    Caller ! {Ref, Results++[Result]},
+    return_reply(Caller, Ref, Result, Results),
     {stop, normal, ok, undefined};
-handle_call({action_over, Result}, _From, #state{results=[],
-						 actions_left=1,
-						 pipelines=Pipelines}=State) ->
-    {reply, ok, reset_state(Pipelines, Result, State)};
 handle_call({action_over, Result}, _From, #state{results=Results,
 						 actions_left=1,
 						 pipelines=Pipelines}=State) ->
-    {reply, ok, reset_state(Pipelines, Results++[Result], State)};
+    {reply, ok, reset_state(Pipelines, Result, Results, State)};
 handle_call({action_over, Result}, _From, #state{results=Results,
 						 actions_left=ActionsLeft}=State) ->
     {reply, ok, State#state{actions_left=ActionsLeft-1,
@@ -70,6 +59,11 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+reset_state(Pipelines, Result, [], State) ->
+    reset_state(Pipelines, Result, State);
+reset_state(Pipelines, Result, Results, State) ->
+    reset_state(Pipelines, Results++[Result], State).
 
 reset_state([#pipeline{type=Type, actions=Actions, init_return=I}|Rest], Input, State) ->
     RunningActions = start_actions(Type, Actions, [{init_with, I}], Input),
@@ -98,6 +92,12 @@ handle_opts([{on_start, {M,F,A}}|Opts], Pipeline) ->
     handle_opts(Opts, Pipeline#pipeline{init_return=M:F(A)});
 handle_opts([{on_start, F}|Opts], Pipeline) ->
     handle_opts(Opts, Pipeline#pipeline{init_return=F()});
-handle_opts([{on_end, _E}|Opts], Pipeline) ->
-    handle_opts(Opts, Pipeline).
+handle_opts([{on_end, {M, F, A}}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline#pipeline{end_fun={M,F,A}});
+handle_opts([{on_end, F}|Opts], Pipeline) ->
+    handle_opts(Opts, Pipeline#pipeline{end_fun=F}).
 
+return_reply(Caller, Ref, Result, []) ->
+    Caller ! {Ref, Result};
+return_reply(Caller, Ref, Result, Results) ->
+    Caller ! {Ref, Results++[Result]}.

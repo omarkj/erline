@@ -18,7 +18,8 @@ Terminology
 A pipeline in `erline` contains the following things
 
 * Type
- * sequential, concurrent
+ * sequential
+ * concurrent
 * Actions
  * Module
  * Function
@@ -30,7 +31,8 @@ Getting Started
 
 Below is a very simple example that runs a pipeline with two actions, these actions are run sequentially with the output from the first one being the input into the next one.
 
-``` ok = application:start(erline).
+``` erlang
+ok = application:start(erline).
 Line = erline:create(sequential, [fun(X) -> X * 10 end,
                                   fun(X) -> X * 10 end], []).
 1500 = erline:sync(Line, 15).
